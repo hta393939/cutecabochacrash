@@ -1,6 +1,6 @@
 // @file cutecabochacrash2.hsp
-// @date 2016-10-23
-// for HSP3.5β4 HGIMG4
+// @date 2020-07-13
+// for HSP3.5β4 -> HSP3.6β3 HGIMG4
 
 // Copyright (C) 2016- Usagi
 // Licensed under the BSD 3-Clause License.
@@ -14,7 +14,8 @@
 
 //#define _WIN
 
-#include "hgimg4.as"
+//#include "hgimg4.as"
+#include "hgimg4dx.as"
 
 #ifdef _WIN
 #include "kernel32.as"
@@ -250,7 +251,7 @@
 // 先にかぼちゃ列挙する。中で使えるように。
 	dim kabos,0
 	c = 0
-	findobj OBJ_HIDE, COL_MY
+	findobj OBJ_HIDE, COL_ENEMY
 *@
 	nextobj id
 	if id >= 0 {
@@ -548,7 +549,7 @@
 
 // 表示制御
 	if DEV >= 1 {
-		findobj OBJ_HIDE,COL_MY
+		findobj OBJ_HIDE,COL_ENEMY
 *@
 		nextobj id
 		if id >= 0 {
@@ -901,7 +902,7 @@
 
 *initkabo01
 // OBJ_MOVEでないものを探す
-	findobj OBJ_MOVE,COL_MY
+	findobj OBJ_MOVE,COL_ENEMY
 	nextobj idk
 	if idk >= 0 {
 		setobjmode idk, OBJ_HIDE, 1
@@ -1125,6 +1126,8 @@
 		setobjmode id, OBJ_HIDE, 0
 		setobjmode id, OBJ_MOVE, 1
 
+		gpact id
+
 		if (u == MT_FIRE) | (u == MT_SPARKLER) | (u == MT_ATOM) | (u == MT_ATOM_BLUE) | (u == MT_SPARKLER_RED) {
 			setobjmode id, OBJ_LATE, 0
 	
@@ -1142,6 +1145,9 @@
 			}
 		} else {
 			setobjmode id, OBJ_LATE, 1
+
+			//gpaddanim id,"default",0,-1
+			//gpact id
 		}
 
 		if (u == MT_KABO) | (u == MT_KABOTYA) {

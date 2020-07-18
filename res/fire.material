@@ -1,0 +1,38 @@
+material fire {
+	u_worldMatrix = WORLD_MATRIX
+	u_viewMatrix = VIEW_MATRIX
+	u_projectionMatrix = PROJECTION_MATRIX
+
+	u_matrixPalette = MATRIX_PALETTE
+
+	u_speed = 60.0
+	u_spread = 0.25
+	u_height = 3.0
+	u_side = 0.75
+
+    technique {
+        pass {
+            vertexShader = res/shaders/fire.vert
+            fragmentShader = res/shaders/fire.frag
+            defines = SKINNING;SKINNING_JOINT_COUNT 1
+
+            sampler u_fireTexture {
+                path = res/fire.png
+                mipmap = false
+                wrapS = CLAMP
+                wrapT = CLAMP
+                minFilter = LINEAR
+                magFilter = LINEAR
+            }
+
+            renderState {
+                cullFace = false
+                depthTest = true
+		depthWrite = false
+	        blend = true
+                blendSrc = ONE
+                blendDst = ONE
+            }
+        }
+    }
+}

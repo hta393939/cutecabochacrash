@@ -1,0 +1,28 @@
+material atom {
+	u_worldMatrix = WORLD_MATRIX
+	u_viewMatrix = VIEW_MATRIX
+	u_projectionMatrix = PROJECTION_MATRIX
+
+	u_matrixPalette = MATRIX_PALETTE
+
+	u_diffuseColor = 0.1, 0.1, 0.9, 1.0
+	u_speed = 30.0
+	u_spread = 1.0
+	u_side = 0.5
+
+    technique {
+        pass {
+            vertexShader = res/shaders/atom.vert
+            fragmentShader = res/shaders/atom.frag
+            defines = SKINNING;SKINNING_JOINT_COUNT 1
+            renderState {
+                cullFace = false
+                depthTest = true
+		depthWrite = false
+	        blend = true
+                blendSrc = ONE
+                blendDst = ONE
+            }
+        }
+    }
+}

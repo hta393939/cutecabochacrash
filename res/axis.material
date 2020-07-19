@@ -1,4 +1,4 @@
-material Colored {
+material colored {
     u_worldViewProjectionMatrix = WORLD_VIEW_PROJECTION_MATRIX
     u_modulateAlpha = 1
 
@@ -6,8 +6,8 @@ material Colored {
 
     technique {
         pass {
-            vertexShader = res/shaders/colored-unlit.vert
-            fragmentShader = res/shaders/colored-unlit.frag
+            vertexShader = res/shaders/colored.vert
+            fragmentShader = res/shaders/colored.frag
             defines = MODULATE_ALPHA
 
             renderState {
@@ -23,14 +23,14 @@ material Colored {
     }
 }
 
-material x: Colored {
+material x: colored {
     u_diffuseColor = 1.0, 0.0, 0.0, 1.0
 }
 
-material y: Colored {
+material y: colored {
     u_diffuseColor = 0.0, 1.0, 0.0, 1.0
 }
 
-material z: Colored {
+material z: colored {
     u_diffuseColor = 0.0, 0.0, 1.0, 1.0
 }

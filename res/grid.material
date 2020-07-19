@@ -6,14 +6,19 @@ material grid {
 
     technique {
         pass {
-            vertexShader = res/shaders/colored-unlit.vert
-            fragmentShader = res/shaders/colored-unlit.frag
+            vertexShader = res/shaders/colored.vert
+            fragmentShader = res/shaders/colored.frag
             defines = MODULATE_ALPHA
 
             renderState {
-                cullFace = false
-                depthTest = true
+		cullFace = false
+		depthTest = false
 		depthWrite = false
+
+                #cullFace = false
+                #depthTest = true
+		#depthWrite = false
+
 	        blend = true
                 blendSrc = SRC_ALPHA
                 blendDst = ONE_MINUS_SRC_ALPHA

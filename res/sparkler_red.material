@@ -1,13 +1,13 @@
-material sparkler_red {
-	u_worldMatrix = WORLD_MATRIX
-	u_viewMatrix = VIEW_MATRIX
-	u_projectionMatrix = PROJECTION_MATRIX
+material material0 {
+    u_worldMatrix = WORLD_MATRIX
+    u_viewMatrix = VIEW_MATRIX
+    u_projectionMatrix = PROJECTION_MATRIX
 
-	u_matrixPalette = MATRIX_PALETTE
+    u_matrixPalette = MATRIX_PALETTE
 
-	u_speed = 120.0
-	u_spread = 1.5
-	u_side = 0.4
+    u_speed = 120.0
+    u_spread = 1.5
+    u_side = 0.4
 
     technique {
         pass {
@@ -35,3 +35,5 @@ material sparkler_red {
         }
     }
 }
+
+

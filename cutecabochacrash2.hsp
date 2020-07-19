@@ -14,8 +14,8 @@
 
 //#define _WIN
 
-//#include "hgimg4.as"
-#include "hgimg4dx.as"
+#include "hgimg4.as"
+//#include "hgimg4dx.as"
 
 #ifdef _WIN
 #include "kernel32.as"
@@ -777,7 +777,8 @@
 
 
 *init01
-	title "珠音ちゃんとカボチャのオバケ ver.1.0"
+	title "珠音ちゃんとカボチャのオバケ ver.1.6"
+	setreq SYSREQ_USEGPBFONT, 1
 	setreq SYSREQ_VSYNC,1
 	gpreset
 	setcls CLSMODE_SOLID, $202020

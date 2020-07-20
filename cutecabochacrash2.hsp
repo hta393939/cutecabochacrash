@@ -389,10 +389,11 @@
 *@
 	nextobj atom
 	if atom >= 0 {
+//dialog "" : end
 		getpos atom, x,y,z
 		if absf(x) <= BEGIN_ABS {
 			getwork2 atom, x2,y2,z2
-
+//dialog "" : end
 			setobjmode atom, OBJ_HIDE, 0
 			setobjmode atom, OBJ_MOVE, 1
 			
@@ -1133,16 +1134,16 @@
 			setobjmode id, OBJ_LATE, 0
 	
 			if u == MT_SPARKLER {
-				setcoli id, COL_ENESHOT, COL_STAR
+				setcoli id, COL_STAR, COL_ENESHOT
 			}
 			if u == MT_SPARKLER_RED {
-				setcoli id, COL_ENESHOT, COL_STAR_RED
+				setcoli id, COL_STAR_RED, COL_ENESHOT
 			}
 			if u == MT_ATOM {
-				setcoli id, COL_SHOT, COL_ATOM
+				setcoli id, COL_ATOM, COL_SHOT
 			}
 			if u == MT_ATOM_BLUE {
-				setcoli id, COL_SHOT, COL_ATOM_BLUE
+				setcoli id, COL_ATOM_BLUE, COL_SHOT
 			}
 		} else {
 			setobjmode id, OBJ_LATE, 1

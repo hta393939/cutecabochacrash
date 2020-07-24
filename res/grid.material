@@ -1,4 +1,4 @@
-material grid {
+material material0 {
     u_worldViewProjectionMatrix = WORLD_VIEW_PROJECTION_MATRIX
     u_modulateAlpha = 1
 
@@ -11,13 +11,9 @@ material grid {
             defines = MODULATE_ALPHA
 
             renderState {
-		cullFace = false
-		depthTest = false
+                cullFace = false
+                depthTest = true
 		depthWrite = false
-
-                #cullFace = false
-                #depthTest = true
-		#depthWrite = false
 
 	        blend = true
                 blendSrc = SRC_ALPHA
@@ -26,3 +22,5 @@ material grid {
         }
     }
 }
+
+

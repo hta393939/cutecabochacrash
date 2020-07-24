@@ -34,3 +34,5 @@ material y: colored {
 material z: colored {
     u_diffuseColor = 0.0, 0.0, 1.0, 1.0
 }
+
+

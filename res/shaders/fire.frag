@@ -1,8 +1,15 @@
 // @file fire.frag
 
 #ifdef OPENGL_ES
+#ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
+#else
+precision mediump float;
 #endif
+#else
+precision mediump float;
+#endif
+
 
 uniform sampler2D u_fireTexture;
 
@@ -15,3 +22,5 @@ void main() {
 	gl_FragColor.rgb = texture2D(u_fireTexture, v_fireTex).rgb * lv;
 	gl_FragColor.a = 1.0;
 }
+
+

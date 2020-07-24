@@ -183,6 +183,14 @@
 
 #global
 
+	x = 0 : y = 0 : z = 0 : x2 = 0 : y2 = 0 : z2 = 0
+	sx = 0 : sy = 0 : sz = 0 : tx = 0 : ty = 0 : tz = 0 : dx = 0 : dy = 0 : dz = 0 : lx = 0 : ly = 0 : lz = 0
+	id = -1 : id_box = -1 : id_floor = -1 : id_floor2 = -1 : ids = -1 : idt = -1
+	p = 0 : q = 0 : t = 0
+	ret = 0 : atom = 0 : eff = 0 : mks = 0 : tops = 0
+	half_w = 0 : half_h = 0 : half_fov_rad = 0 : px_w = 0 : px_h = 0
+	ts = 0 : base_ts = 0 : fps = 0 : mts = 0 : info = 0 : in_qq = 0 : high_score = 0
+	
 
 	onexit *owari01
 	gosub *init01
@@ -1040,10 +1048,10 @@
 	mps.MT_SPARKLER_RED = "res/sparkler_red"
 	mps.MT_ATOM = "res/atom"
 	mps.MT_ATOM_BLUE = "res/atom_blue"
-	mps.MT_KABO = "res/kabo/kabo"
-	mps.MT_KABOTYA = "res/kabotya/kabotya"
+	mps.MT_KABO = "res/kabo"
+	mps.MT_KABOTYA = "res/kabotya"
 	mps.MT_MF_00 = "res/mf_00/mf_00"
-	mps.MT_MD_00 = "res/md_00/md_00"
+	mps.MT_MD_00 = "res/md_00"
 	mps.MT_TAKARA = "res/takarabako_05/takarabako_05"
 	mps.MT_AXIS = "res/axis"
 
@@ -1119,8 +1127,11 @@
 		} else {
 			gpload id, s.cnt
 			if id < 0 {
-				dialog "", s.cnt
-				end
+				//dialog "", s.cnt
+				//end
+				s = strf("console.warn('gpload', '%s');", s.cnt)
+				exec(s)
+				continue
 			}
 		}
 

@@ -1,5 +1,16 @@
 // @file sparkler.vert
 
+#ifdef OPENGL_ES
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+#else
+precision mediump float;
+#endif
+
+
 attribute vec4 a_position;
 attribute vec3 a_normal;
 attribute vec2 a_texCoord;

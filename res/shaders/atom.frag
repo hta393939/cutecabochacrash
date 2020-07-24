@@ -1,8 +1,15 @@
 // @file atom.frag
 
 #ifdef OPENGL_ES
+#ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
+#else
+precision mediump float;
 #endif
+#else
+precision mediump float;
+#endif
+
 
 uniform vec4 u_diffuseColor;
 
@@ -14,3 +21,5 @@ void main() {
 	gl_FragColor.rgb = u_diffuseColor.rgb * lv;
 	gl_FragColor.a = 1.0;
 }
+
+

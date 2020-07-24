@@ -1,8 +1,6 @@
-/**
- * @file cutecabochacrash2.hsp
- * @date 2020-07-24
- * for HSP3.5β4 -> HSP3.6β3 HGIMG4
- */
+// @file cutecabochacrash2.hsp
+// @date 2020-07-13
+// for HSP3.5β4 -> HSP3.6β3 HGIMG4
 
 // Copyright (C) 2016- Usagi
 // Licensed under the BSD 3-Clause License.
@@ -16,16 +14,16 @@
 
 //#define _WIN
 
-#include "hgimg4.as"
-//#include "hgimg4dx.as"
+//#include "hgimg4.as"
+#include "hgimg4dx.as"
 
 #ifdef _WIN
 #include "kernel32.as"
 #endif
 
 // 0: リリース版、1: 開発中
-//#const DEV 1
-#const DEV 0
+#const DEV 1
+//#const DEV 0
 
 #const EX 0
 #const EY 1
@@ -183,14 +181,6 @@
 
 #global
 
-	x = 0 : y = 0 : z = 0 : x2 = 0 : y2 = 0 : z2 = 0
-	sx = 0 : sy = 0 : sz = 0 : tx = 0 : ty = 0 : tz = 0 : dx = 0 : dy = 0 : dz = 0 : lx = 0 : ly = 0 : lz = 0
-	id = -1 : id_box = -1 : id_floor = -1 : id_floor2 = -1 : ids = -1 : idt = -1
-	p = 0 : q = 0 : t = 0
-	ret = 0 : atom = 0 : eff = 0 : mks = 0 : tops = 0
-	half_w = 0 : half_h = 0 : half_fov_rad = 0 : px_w = 0 : px_h = 0
-	ts = 0 : base_ts = 0 : fps = 0 : mts = 0 : info = 0 : in_qq = 0 : high_score = 0
-	
 
 	onexit *owari01
 	gosub *init01
@@ -261,7 +251,7 @@
 // 先にかぼちゃ列挙する。中で使えるように。
 	dim kabos,0
 	c = 0
-	findobj OBJ_HIDE, COL_ENEMY
+	findobj OBJ_HIDE, COL_MY
 *@
 	nextobj id
 	if id >= 0 {
@@ -399,11 +389,10 @@
 *@
 	nextobj atom
 	if atom >= 0 {
-//dialog "" : end
 		getpos atom, x,y,z
 		if absf(x) <= BEGIN_ABS {
 			getwork2 atom, x2,y2,z2
-//dialog "" : end
+
 			setobjmode atom, OBJ_HIDE, 0
 			setobjmode atom, OBJ_MOVE, 1
 			
@@ -560,7 +549,7 @@
 
 // 表示制御
 	if DEV >= 1 {
-		findobj OBJ_HIDE,COL_ENEMY
+		findobj OBJ_HIDE,COL_MY
 *@
 		nextobj id
 		if id >= 0 {
@@ -788,8 +777,7 @@
 
 
 *init01
-	title "珠音ちゃんとカボチャのオバケ ver.1.6"
-	setreq SYSREQ_USEGPBFONT, 1
+	title "珠音ちゃんとカボチャのオバケ ver.1.0"
 	setreq SYSREQ_VSYNC,1
 	gpreset
 	setcls CLSMODE_SOLID, $202020
@@ -913,7 +901,11 @@
 
 
 *initkabo01
+	//assert 0
+	//dialog ""
+	// COL_MY なのは体当たり???
 // OBJ_MOVEでないものを探す
+	//findobj OBJ_MOVE,COL_MY
 	findobj OBJ_MOVE,COL_ENEMY
 	nextobj idk
 	if idk >= 0 {
@@ -1048,11 +1040,11 @@
 	mps.MT_SPARKLER_RED = "res/sparkler_red"
 	mps.MT_ATOM = "res/atom"
 	mps.MT_ATOM_BLUE = "res/atom_blue"
-	mps.MT_KABO = "res/kabo"
-	mps.MT_KABOTYA = "res/kabotya"
-	mps.MT_MF_00 = "res/mf_00"
-	mps.MT_MD_00 = "res/md_00"
-	mps.MT_TAKARA = "res/takarabako_05"
+	mps.MT_KABO = "res/kabo/kabo"
+	mps.MT_KABOTYA = "res/kabotya/kabotya"
+	mps.MT_MF_00 = "res/mf_00/mf_00"
+	mps.MT_MD_00 = "res/md_00/md_00"
+	mps.MT_TAKARA = "res/takarabako_05/takarabako_05"
 	mps.MT_AXIS = "res/axis"
 
 
@@ -1117,6 +1109,7 @@
 	loop
 
 	dim ids,sum
+	//dialog "" + sum
 
 // ロードの実行
 	repeat sum
@@ -1127,42 +1120,37 @@
 		} else {
 			gpload id, s.cnt
 			if id < 0 {
-				//dialog "", s.cnt
-				//end
-				s = strf("console.warn('gpload', '%s');", s.cnt)
-				exec(s)
-				continue
+				dialog "", s.cnt
+				end
 			}
 		}
 
 		ids.cnt = id
 		setscale id, k.cnt, k.cnt, k.cnt
-	
-		setobjmode id, OBJ_HIDE, 0
-		setobjmode id, OBJ_MOVE, 1
 
-		gpact id
+// つけなければ 見える
+		//setobjmode id, OBJ_HIDE, 0
+		setpos id, double(cnt-20)*0.4, double(cnt & 3)*0.2,0
+		
+		setobjmode id, OBJ_MOVE, 1
 
 		if (u == MT_FIRE) | (u == MT_SPARKLER) | (u == MT_ATOM) | (u == MT_ATOM_BLUE) | (u == MT_SPARKLER_RED) {
 			setobjmode id, OBJ_LATE, 0
 	
 			if u == MT_SPARKLER {
-				setcoli id, COL_STAR, COL_ENESHOT
+				setcoli id, COL_ENESHOT, COL_STAR
 			}
 			if u == MT_SPARKLER_RED {
-				setcoli id, COL_STAR_RED, COL_ENESHOT
+				setcoli id, COL_ENESHOT, COL_STAR_RED
 			}
 			if u == MT_ATOM {
-				setcoli id, COL_ATOM, COL_SHOT
+				setcoli id, COL_SHOT, COL_ATOM
 			}
 			if u == MT_ATOM_BLUE {
-				setcoli id, COL_ATOM_BLUE, COL_SHOT
+				setcoli id, COL_SHOT, COL_ATOM_BLUE
 			}
 		} else {
 			setobjmode id, OBJ_LATE, 1
-
-			//gpaddanim id,"default",0,-1
-			//gpact id
 		}
 
 		if (u == MT_KABO) | (u == MT_KABOTYA) {
@@ -1238,6 +1226,8 @@
 		getwork2 id1, x,y,z
 		setwork2 id1, x,y,id0	
 	}
+
+	//stop
 
 	return
 

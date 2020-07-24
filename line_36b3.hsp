@@ -1,0 +1,161 @@
+/**
+ * @file line_36b3.hsp
+ * @date 2020-07-23
+ * HGIMG4でのラインパックモデルの使用例です。
+ */
+
+// Copyright (C) 2016- Usagi
+// Licensed under the BSD 3-Clause License.
+// https://opensource.org/licenses/BSD-3-Clause
+// 三条項修正BSDライセンスです。
+
+
+#include "hgimg4.as"
+
+#const DELTA 0.001
+
+// インデックス用定数
+#const EX 0
+#const EY 1
+#const EZ 2
+#const ENX 3
+#const ENY 4
+#const ENZ 5
+
+#module
+// line.gpb を使用した疑似ライン描画です
+// fid: line.gpb のIDを指定します
+// fx1, fy1, fz1: doubleで始点座標
+// fx2, fy2, fz2: doubleで終点座標
+#deffunc pseudoline int fid, double fx1, double fy1, double fz1, double fx2, double fy2, double fz2
+	dx3 = fx2 - fx1
+	dy3 = fy2 - fy1
+	dz3 = fz2 - fz1
+	dd3 = dx3 * dx3 + dy3 * dy3 + dz3 * dz3
+	dd3q = sqrt(dd3)
+
+	setscale fid, dd3q,dd3q,dd3q
+
+	if dd3q > 0.0 {	
+		dd4 = dx3 * dx3 + dz3 * dz3
+
+// Z軸回りが先
+		dz4 = atan(dy3, sqrt(dd4))
+		dy4 = atan(-dz3, dx3)
+
+		setang fid, 0.0, dy4, dz4
+	}
+	
+	setpos fid, fx1,fy1,fz1
+	return
+#global
+
+
+//// 初期化
+	gpreset
+
+	setcls CLSMODE_SOLID, $404040
+
+// モデル読み込みここから
+	gpload id_grid,"res/line/grid"
+	gpload id_axis,"res/line/axis"
+	
+	gpload id_line,"res/line/line"
+	gpclone id_line2, id_line
+	pseudoline id_line2, 2,3,2, 5,0,3
+
+	gpclone id_line3, id_line
+	setpos id_line3, 0,5,0
+
+	gpload id_wirebox,"res/line/wirebox"
+	setpos id_wirebox, 2,3,2
+// モデル読み込みここまで
+
+
+// カメラ用パラメータ初期値
+	c_head = M_PI
+	c_pitch = 0.0
+	c_x = mousex
+	c_y = mousey
+	c_prel = 1
+	c_dist = 20.0
+	ddim ps,6,1
+
+
+//// メインループ
+	repeat
+		mx = mousex
+		my = mousey
+		stick key,256
+
+		if key&128 : end
+
+		gosub *cam01
+
+
+// モデル動作
+		x = - double((cnt/60)\5) - 1.0
+		pseudoline id_line, x,0.0,1.0, 2.0,3.0,2.0
+
+		ra = double(cnt) * 0.01
+		setang id_wirebox, ra,ra,ra
+		
+
+		redraw 0
+		gpdraw
+		pos 8,8:mes "HGIMG4 linepack sample"
+		redraw 1
+		await 1000/60
+	loop
+
+
+
+*cam01
+// カメラ計算
+
+	lbutton = key & 256
+
+	if c_prel {
+		dx = double(mx - c_x)
+		dy = double(my - c_y)
+	
+		head = c_head - dx * 0.01
+		pitch = limitf(c_pitch - dy * 0.01, -(M_PI*0.5 - DELTA), M_PI*0.5 - DELTA)
+		
+		if lbutton {
+			// 押したまま
+		} else {
+			// 今離した
+			c_head = head
+			c_pitch = pitch
+		}
+	} else {
+		if lbutton {
+			// 今押した
+			c_x = mx
+			c_y = my
+		}
+	}
+	
+
+// 変換して算出
+	c = 0
+
+	if c_prel {
+		rr = cos(pitch)
+
+		ps.ENX.c = rr * sin(head)
+		ps.ENY.c = sin(pitch)
+		ps.ENZ.c = rr * cos(head)
+		ps.EX.c = 0.0 - c_dist * ps.ENX.c
+		ps.EY.c = 4.0 - c_dist * ps.ENY.c
+		ps.EZ.c = 0.0 - c_dist * ps.ENZ.c
+
+		setpos GPOBJ_CAMERA, ps.EX.c,ps.EY.c,ps.EZ.c
+		gplookat GPOBJ_CAMERA, ps.EX.c + c_dist * ps.ENX.c, ps.EY.c + c_dist * ps.ENY.c, ps.EZ.c + c_dist * ps.ENZ.c
+	}
+
+	c_prel = lbutton
+	return
+
+

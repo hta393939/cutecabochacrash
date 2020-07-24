@@ -1,0 +1,146 @@
+/**
+ * @file useparticlemodel.hsp
+ * @date 2020-07-23
+ * HGIMG4でのパーティクルモデルの使用例です。
+ */
+
+// Copyright (C) 2016- Usagi
+// Licensed under the BSD 3-Clause License.
+// https://opensource.org/licenses/BSD-3-Clause
+// 三条項修正BSDライセンスです。
+
+
+#include "hgimg4.as"
+
+// インデックス用定数
+#const EX 0
+#const EY 1
+#const EZ 2
+#const ENX 3
+#const ENY 4
+#const ENZ 5
+#const EU 6
+#const EV 7
+
+
+//// 初期化
+	gpreset
+	setcls CLSMODE_SOLID, $404040
+
+
+	gpload id_atom,"res/atom"
+	setobjmode id_atom, OBJ_LATE, 0
+	setpos id_atom, -4,2,0
+	gpact id_atom
+
+	gpload id_fire,"res/fire"
+	setobjmode id_fire, OBJ_LATE, 0
+	setpos id_fire, 0,2,0
+	gpact id_fire
+
+	gpload id_sp,"res/sparkler"
+	setobjmode id_sp, OBJ_LATE, 0
+	setpos id_sp, 4,2,0
+	gpact id_sp
+
+	gpfloor id_floor, 8,8, $333333
+	gpfloor id_floor2, 8,8, $333333
+	setang id_floor2, M_PI,0,0
+	
+
+// カメラ用パラメータ初期値
+	c_head = M_PI * 1.1
+	c_pitch = 0.0
+	c_x = mousex
+	c_y = mousey
+	c_prel = 1
+	c_dist = 16.0
+
+	ddim ps,6,1
+
+
+	repeat
+		mx = mousex
+		my = mousey
+		mw = mousew
+		stick key,15 | 512
+
+		if key&128 : end
+
+		gosub *cam01
+
+		if key & 256 {
+			y = double(rnd(20)) * 0.1 + 2.0
+			z = double(rnd(5) - 2)
+			setpos id_atom, -4,y,z
+			
+			y = double(rnd(20)) * 0.1 + 2.0
+			z = double(rnd(5) - 2)
+			setpos id_fire, 0,y,z
+	
+			setang id_fire, 0,0,double(rnd(314))*0.02
+	
+			y = double(rnd(20)) * 0.1 + 2.0
+			z = double(rnd(5) - 2)
+			setpos id_sp, 4,y,z
+		}
+
+
+		redraw 0
+		gpdraw
+		pos 8,8:mes "HGIMG4 particle sample"
+		redraw 1
+		await 1000/60
+	loop
+
+
+*cam01
+//// カメラ計算
+	c_dist = limitf(c_dist + double(mw) * 1.0, 1.0, 100.0)
+	
+	lbutton = key & 512
+
+	if c_prel {
+		dx = double(mx - c_x)
+		dy = double(my - c_y)
+	
+		head = c_head - dx * 0.01
+		pitch = limitf(c_pitch - dy * 0.01, -M_PI*0.5, M_PI*0.5)
+		
+		if lbutton {
+			// 押したまま
+		} else {
+			// 今離した
+			c_head = head
+			c_pitch = pitch
+		}
+	} else {
+		if lbutton {
+			// 今押した
+			c_x = mx
+			c_y = my
+		}
+	}
+	
+
+// 変換して算出
+	c = 0
+
+	if c_prel {
+		rr = cos(pitch)
+
+		ps.ENX.c = rr * sin(head)
+		ps.ENY.c = sin(pitch)
+		ps.ENZ.c = rr * cos(head)
+		ps.EX.c = 0.0 - c_dist * ps.ENX.c
+		ps.EY.c = 4.0 - c_dist * ps.ENY.c
+		ps.EZ.c = 0.0 - c_dist * ps.ENZ.c
+
+		setpos GPOBJ_CAMERA, ps.EX.c,ps.EY.c,ps.EZ.c
+		gplookat GPOBJ_CAMERA, ps.EX.c + c_dist * ps.ENX.c, ps.EY.c + c_dist * ps.ENY.c, ps.EZ.c + c_dist * ps.ENZ.c
+	}
+
+	c_prel = lbutton
+	return
+
+

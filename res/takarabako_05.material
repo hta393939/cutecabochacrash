@@ -64,7 +64,7 @@ material takara: Textured {
 	u_specularExponent = 5
 	u_ambientColor = 0.6,0.6,0.6
 	sampler u_diffuseTexture {
-		path = takara3.png
+		path = takarabako_05.png
 	}
 	technique {
 		pass {
@@ -76,7 +76,7 @@ material takara2: Textured {
 	u_specularExponent = 5
 	u_ambientColor = 0.2754,0.2754,0.2754
 	sampler u_diffuseTexture {
-		path = takara3.png
+		path = takarabako_05.png
 	}
 	technique {
 		pass {

@@ -1,6 +1,6 @@
 /**
  * @file cutecabochacrash2.hsp
- * @date 2020-07-23
+ * @date 2020-07-24
  * for HSP3.5β4 -> HSP3.6β3 HGIMG4
  */
 
@@ -24,8 +24,8 @@
 #endif
 
 // 0: リリース版、1: 開発中
-#const DEV 1
-//#const DEV 0
+//#const DEV 1
+#const DEV 0
 
 #const EX 0
 #const EY 1
@@ -1050,9 +1050,9 @@
 	mps.MT_ATOM_BLUE = "res/atom_blue"
 	mps.MT_KABO = "res/kabo"
 	mps.MT_KABOTYA = "res/kabotya"
-	mps.MT_MF_00 = "res/mf_00/mf_00"
+	mps.MT_MF_00 = "res/mf_00"
 	mps.MT_MD_00 = "res/md_00"
-	mps.MT_TAKARA = "res/takarabako_05/takarabako_05"
+	mps.MT_TAKARA = "res/takarabako_05"
 	mps.MT_AXIS = "res/axis"
 
 

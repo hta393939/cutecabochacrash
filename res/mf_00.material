@@ -55,7 +55,7 @@ material Colored {
 
 material yuka: Textured {
 	sampler u_diffuseTexture {
-		path = yuka.png
+		path = mf_00.png
 	}
 	technique {
 		pass {
@@ -63,3 +63,5 @@ material yuka: Textured {
 		}
 	}
 }
+
+

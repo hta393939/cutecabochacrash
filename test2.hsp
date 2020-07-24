@@ -1,0 +1,1250 @@
+// @file cutecabochacrash2.hsp
+// @date 2020-07-13
+// for HSP3.5β4 -> HSP3.6β3 HGIMG4
+
+// Copyright (C) 2016- Usagi
+// Licensed under the BSD 3-Clause License.
+// https://opensource.org/licenses/BSD-3-Clause
+// 三条項修正BSDライセンスです。
+
+#packopt name "cutecabochacrash"
+#packopt runtime "hsp3hg"
+#packopt xsize 1024
+#packopt ysize 600
+
+//#define _WIN
+
+//#include "hgimg4.as"
+#include "hgimg4dx.as"
+
+#ifdef _WIN
+#include "kernel32.as"
+#endif
+
+// 0: リリース版、1: 開発中
+#const DEV 1
+//#const DEV 0
+
+#const EX 0
+#const EY 1
+#const EZ 2
+#const ENX 3
+#const ENY 4
+#const ENZ 5
+
+// .gpbモデル種類
+#const MT_GRID 0
+#const MT_MF_00 1
+#const MT_STAND 2
+#const MT_WALK 3
+#const MT_RUN 4
+#const MT_KABO 5
+#const MT_KABOTYA 6
+#const MT_TAKARA 7
+#const MT_FIRE 8
+#const MT_SPARKLER 9
+#const MT_SPARKLER_RED 10
+#const MT_ATOM 11
+#const MT_ATOM_BLUE 12
+#const MT_AXIS 13
+#const MT_MD_00 14
+#const MT_MAX 15
+
+
+// たまねアニメ状態
+#const TAM_STAND 0
+#const TAM_WALK 1
+#const TAM_RUN 2
+
+// ゲームの状態
+#const STATUS_NONE 0
+#const STATUS_TITLE 1
+#const STATUS_READY 2
+#const STATUS_MAIN 3
+#const STATUS_TIMEUP 4
+
+#const COL_MY 1
+#const COL_SHOT 2
+#const COL_ENEMY 4
+#const COL_ENESHOT 8
+
+// 衝突先ではなく自分検索用
+#const COL_STAR 16
+#const COL_STAR_RED 32
+#const COL_ATOM 64
+#const COL_ATOM_BLUE 128
+#const COL_TAKARA 256
+
+#const BIT_CLONE 0x10000
+
+#const FLOOR_SIDE_NUM 4
+#const TOUCH_BELT 60
+#const STAR_MSEC 500
+
+// 各得点
+#const PTS_TOUCH 100
+#const PTS_FIRE 20
+#const PTS_TAKARA 300
+
+// ゲーム時間秒の100倍
+#const TIME100 30*100
+
+#const KABO_SPEED 0.08
+
+#define LIMIT_ABS (double(FLOOR_SIDE_NUM)-1.0)
+
+#define BEGIN_ABS double(FLOOR_SIDE_NUM)
+#define END_ABS (BEGIN_ABS + 1.0)
+
+#const TAKARA_LIMIT_ABS 20.0
+
+// 発生パーセンテージ
+#if DEV >= 1
+#const TAKARA_RATE_100 100
+#else
+#const TAKARA_RATE_100 7
+#endif
+
+#const BIT_NONAUTO (GPDRAW_OPT_DRAWSCENE|GPDRAW_OPT_DRAWSCENE_LATE)
+
+// Win時 stickビット
+#const ST_L 1
+#const ST_U 2
+#const ST_R 4
+#const ST_D 8
+#const ST_SPC 16
+#const ST_ENTER 32
+#const ST_ESC 128
+#const ST_LB 256
+#const ST_RB 512
+
+
+#module
+
+#deffunc _xrot array lv, double la, local lc, local ls, local ly, local lz
+// X軸回り回転 破壊
+	lc = cos(la)
+	ls = sin(la)
+	ly = lc * lv.1 - ls * lv.2
+	lz = ls * lv.1 + lc * lv.2
+	lv.1 = ly
+	lv.2 = lz
+	return
+	
+#deffunc _yrot array lv, double la, local lc, local ls, local lx, local lz
+	lc = cos(la)
+	ls = sin(la)
+	lx =  lc * lv.0 + ls * lv.2
+	lz = -ls * lv.0 + lc * lv.2
+	lv.0 = lx
+	lv.2 = lz
+	return
+	
+#deffunc _zrot array lv, double la, local lc, local ls, local lx, local ly
+	lc = cos(la)
+	ls = sin(la)
+	lx = lc * lv.0 - ls * lv.1
+	ly = ls * lv.0 + lc * lv.1
+	lv.0 = lx
+	lv.1 = ly
+	return
+
+#deffunc _qrot array lp, array lq, double li, array lret, local lw, local lre
+// クォータニオンで座標を回転 非破壊
+// l4は3成分の位置、lqはクォータニオン、liは1.0か-1.0
+// lretは結果位置
+
+	lw = lq.3
+// 前の積
+	l7 = lq.0 * li, lq.1 * li, lq.2 * li
+	fvinner l7, lp.0, lp.1, lp.2
+	lre = -l7.0
+	
+	l7 = lp.0 * lw, lp.1 * lw, lp.2 * lw
+	l8 = lq.0 * li, lq.1 * li, lq.2 * li
+	fvouter l8, lp.0, lp.1, lp.2
+	fvadd l7, l8.0, l8.1, l8.2
+
+// 後ろの積
+	lret = l7.0, l7.1, l7.2
+	fvouter lret, -lq.0 * li, -lq.1 * li, -lq.2 * li
+	fvadd lret, l7.0 * lw, l7.1 * lw, l7.2 * lw
+	fvadd lret, -lq.0 * li * lre, -lq.1 * li * lre, -lq.2 * li * lre
+	return
+	
+#defcfunc _direction double ld
+// 負なら-1.0、それ以外は1.0を返す
+	if ld >= 0.0 {
+		return 1.0
+	}
+	return -1.0
+
+#global
+
+
+	onexit *owari01
+	gosub *init01
+	status = STATUS_TITLE
+
+*main01
+	motion = TAM_STAND
+	frame = 0
+	is_takara = 0
+
+*main05
+	redraw 0
+
+	getreq ts, SYSREQ_TIMER
+	getreq fps, SYSREQ_FPS
+	
+	mx = mousex
+	my = mousey
+	mw = mousew
+
+	frame++
+	
+	key = 0
+	stick key,15 | ST_SPC | ST_RB
+	if key & ST_ESC {
+		status = STATUS_TITLE
+	}
+	if key & ST_ENTER {
+		gosub *ready01
+	}
+
+	gosub *cam01
+
+// タッチ情報があったときは保存しておく
+	is_belt = 0
+	ddim multis,4,0
+	//s = ""
+	mtlist mts
+	num = stat
+	if num >= 1 {
+		c = 0
+		repeat num
+			mtinfo info, mts.cnt
+			//s += "," + info.0 + "," + info.1 + "," + info.2 + "," + info.3
+
+			multis.0.c = double(info.1), double(info.2), double(0), double(info.3)
+			c++
+	
+			if info.2 >= (PX_H - TOUCH_BELT) {
+				is_belt = 1
+			}
+		loop
+	}
+	if (status == STATUS_TITLE) & is_belt {
+		gosub *ready01
+	}
+
+// マルチタッチ判定したい
+
+	if is_takara {
+		if is_takara == 1 {
+			gppset id_box, GPPSET_KINEMATIC, 0
+			gppapply id_box, GPPAPPLY_IMPULSE, 0.0, 200.0, -400.0
+		}
+		is_takara--
+	}
+
+// 先にかぼちゃ列挙する。中で使えるように。
+	dim kabos,0
+	c = 0
+	findobj OBJ_HIDE, COL_MY
+*@
+	nextobj id
+	if id >= 0 {
+		kabos.c = id
+		c++
+		goto *@b
+	}	
+
+	repeat c
+				id = kabos.cnt
+
+				getpos id, x,y,z
+				getwork2 id, x2,y2,z2
+	// 中心座標
+				y += y2
+
+				if absf(x) >= END_ABS {
+// 魂モードへ
+					setobjmode id, OBJ_HIDE, 0
+					setobjmode id, OBJ_MOVE, 1
+	
+					getdir id, dx,dy,dz
+	
+					pair_id = int(z2)
+					setobjmode pair_id, OBJ_HIDE, 1
+					setobjmode pair_id, OBJ_MOVE, 0
+
+					setpos pair_id, x,y,z
+					skew = KABO_SPEED / 1.732 * 0.5
+					dx = -_direction(x) * skew
+					dy = -skew
+					dz = -skew
+					if y < 2.0 {
+						dy = 0.0
+					}
+					if z < - LIMIT_ABS {
+						dz = skew
+						dy = skew
+					}
+					setdir pair_id, dx, dy, dz
+
+					continue
+				}
+	
+				in_pos = x, y, z
+				gosub *calcv2_01
+				if sz > 0.0 {
+					setwork id, sx,sy,sz
+				} else {
+					setwork id, 0,0,0
+				}
+
+				// 判定する
+				is_touch = 0
+				pt = 0
+				r2 = powf(sz * x2, 2.0)
+				repeat length2(multis)
+					i = cnt
+					d2 = powf(sx - multis.EX.i, 2.0) + powf(sy - multis.EY.i, 2.0)
+					if d2 <= r2 {
+						is_touch = 1
+						pt = PTS_TOUCH
+
+// 宝箱の判定
+						findobj OBJ_MOVE, COL_TAKARA
+						nextobj idt
+						if idt >= 0 {
+							dice = rnd(100)
+							if dice < TAKARA_RATE_100 {
+								is_takara = 2
+								getwork2 idt, x2,y2,z2
+								idb = int(z2)
+								
+								gppset idb, GPPSET_KINEMATIC, 1
+								setpos idb, x,y,z
+								setang idb, 0, M_PI*0.1, -M_PI*0.1
+
+								setobjmode idt, OBJ_HIDE, 1
+								setobjmode idt, OBJ_MOVE, 0
+							}
+						}
+						
+					}
+				loop
+	
+				if (motion == TAM_STAND) & (is_touch == 0) {
+					getpos ids(tops.MT_STAND), tx,ty,tz
+					tk = mks.MT_STAND
+					ty += 126.0 * tk
+					r2 = powf(54.0 * tk, 2.0)
+					d2 = powf(x - tx, 2.0) + powf(z - tz, 2.0)
+					if (d2 <= r2) & (absf(y - ty) <= 120.0 * tk) {
+						is_touch = 1
+						pt = PTS_FIRE
+					}
+				}
+	
+// タッチまたは炎でかぼを撃退
+				if is_touch {
+					if status == STATUS_MAIN {
+						score += pt
+					}
+
+					gosub *rekabo01
+
+					findobj OBJ_MOVE, COL_STAR
+					nextobj eff
+					if eff >= 0 {
+						setobjmode eff, OBJ_HIDE, 1
+						setobjmode eff, OBJ_MOVE, 0
+						setpos eff, x,y,z
+	
+						gpsetprm eff, PRMSET_TIMER, ts + STAR_MSEC
+					}
+
+				}
+
+	loop
+
+// 表示されている火花の消去判定
+	findobj OBJ_HIDE, COL_STAR | COL_STAR_RED
+*@
+	nextobj eff
+	if eff >= 0 {
+		gpgetprm t, eff, PRMSET_TIMER
+		if ts > t {
+			setobjmode eff, OBJ_HIDE, 0
+			setobjmode eff, OBJ_MOVE, 1
+		}	
+		goto *@b
+	}
+
+// 魂モードからかぼへの判定
+	findobj OBJ_HIDE, COL_ATOM | COL_ATOM_BLUE
+*@
+	nextobj atom
+	if atom >= 0 {
+		getpos atom, x,y,z
+		if absf(x) <= BEGIN_ABS {
+			getwork2 atom, x2,y2,z2
+
+			setobjmode atom, OBJ_HIDE, 0
+			setobjmode atom, OBJ_MOVE, 1
+			
+			id = int(z2)
+	
+			setobjmode id, OBJ_HIDE, 1
+			setobjmode id, OBJ_MOVE, 0
+
+			getwork2 id, x2,y2,z2
+			y -= y2
+
+
+			if x >= 0.0 {
+				dx = -KABO_SPEED
+				ry = -M_PI * 0.5
+			} else {
+				dx = KABO_SPEED
+				ry = M_PI * 0.5
+			}
+
+			setpos id, x,y,z
+			setdir id, dx,0,0
+			setang id, 0,ry,0
+		}
+		goto *@b
+	}
+
+
+// たまねのカーソル移動
+	movs.0 = 0.0, 0.02, 0.04
+	
+	motion = TAM_STAND
+	keydir = key & 15
+	
+	keyang.0 = 0.0, -0.5, -1.0, -0.75, 0.5, 0.0, 0.75, -1.0
+	keyang.8 = 0.0, -0.25, 0.0, -0.5, 0.25, 0.0, 0.5, 0.0
+
+
+	if keydir {
+		motion = TAM_WALK
+		if key & ST_SPC {
+			motion = TAM_RUN
+		}
+
+		ang.1 = M_PI * keyang.keydir
+	
+		tam_pos.EX += sin(ang.1) * movs.motion
+		tam_pos.EZ += cos(ang.1) * movs.motion
+	}
+	fvmin tam_pos, -LIMIT_ABS, -LIMIT_ABS, -LIMIT_ABS
+	fvmax tam_pos,  LIMIT_ABS,  LIMIT_ABS,  LIMIT_ABS
+
+
+	repeat 3
+		id = ids(tops(MT_STAND+cnt))
+		setpos id, tam_pos.EX, tam_pos.EY, tam_pos.EZ
+		setang id, 0, ang.1
+
+		visible = 0
+		if motion == cnt {
+			visible = 1
+		}
+		setobjmode id, OBJ_HIDE,visible
+	loop
+
+	id = ids(tops.MT_FIRE)
+	if motion == TAM_STAND {
+		setobjmode id, OBJ_HIDE, 1
+		setpos id, tam_pos.EX, tam_pos.EY, tam_pos.EZ
+	} else {
+		setobjmode id, OBJ_HIDE, 0
+	}
+
+	gpdraw GPDRAW_OPT_OBJUPDATE
+	
+// 物理の追従
+	if 1 {
+		findobj OBJ_HIDE, COL_TAKARA
+		nextobj idt
+		if idt >= 0 {
+			getwork2 idt, x2,y2,z2
+			id = int(z2)
+			of.0 = 0.0, y2, 0.0
+			
+			getpos id, x,y,z
+			getwork2 id, x2,y2,z2
+
+			if (y < -TAKARA_LIMIT_ABS) & (is_takara == 0) {
+				setobjmode idt, OBJ_HIDE, 0
+				setobjmode idt, OBJ_MOVE, 1
+	
+				gppset id, GPPSET_KINEMATIC, 1
+				setpos id, 0,6,0
+				goto *@f
+			}
+
+// 物理箱の回転分解成分を取得する
+			selquat id
+			objgetfv in_qq
+			gosub *q2ang01
+
+// モデルの中心がずれている分のオフセット
+			_zrot of, ret.EZ
+			_yrot of, ret.EY
+			_xrot of, ret.EX
+
+// 宝箱モデルの方に反映
+			setpos idt, x,y,z
+			addpos idt, -of.EX, -of.EY, -of.EZ
+			setang idt, ret.EX, ret.EY, ret.EZ
+	
+			if 1 {
+				// たまねとの当たり判定
+				getpos ids(tops.MT_STAND), tx,ty,tz
+				tk = mks.MT_STAND
+				ty += 126.0 * tk
+				r2 = powf((54.0 + 25.0) * tk, 2.0)
+				d2 = powf(x - tx, 2.0) + powf(z - tz, 2.0)
+				if (d2 <= r2) & (absf(y - ty) <= (120.0 + 36.0) * tk) {
+					if status == STATUS_MAIN {
+						score += PTS_TAKARA
+					}
+	
+					setobjmode idt, OBJ_HIDE, 0
+					setobjmode idt, OBJ_MOVE, 1
+	
+					gppset id, GPPSET_KINEMATIC, 1
+					setpos id, 0,6,0
+	
+// 宝箱を取ったときは赤いエフェクトを出す
+					findobj OBJ_MOVE, COL_STAR_RED
+					nextobj eff
+					if eff >= 0 {
+						setobjmode eff, OBJ_HIDE, 1
+						setobjmode eff, OBJ_MOVE, 0
+						setpos eff, x,y,z
+	
+						gpsetprm eff, PRMSET_TIMER, ts + STAR_MSEC
+					}
+					
+					goto *@f				
+				}
+			}
+
+		}
+*@
+	}
+
+	gpdraw BIT_NONAUTO
+
+	if score >= high_score {
+		high_score = score
+	}
+
+// 表示制御
+	if DEV >= 1 {
+		findobj OBJ_HIDE,COL_MY
+*@
+		nextobj id
+		if id >= 0 {
+			getwork id, x,y,z
+			if z > 0.0 {
+				getwork2 id, x2,y2,z2
+				color 255,0,0
+				x = int(x)
+				y = int(y)
+				z = int(z * x2)
+				r = z
+				belt = 2
+				boxf x-r,y-r, x+r-1,y-r-1 + belt
+				boxf x-r,y+r - belt, x+r-1,y+r-1
+	
+				boxf x-r,y-r, x-r-1 + belt,y+r-1
+				boxf x+r - belt, y-r, x+r, y+r - 1
+			}
+			goto *@b
+		}
+	}
+
+// 左上
+	font "",32
+	pos 20,20
+	color 255,0,0
+	mes "HI-SCORE: " + high_score
+	color 255,255,255
+	mes "   SCORE: " + score
+
+	if (status == STATUS_READY) | (status == STATUS_MAIN) {
+		diff = (ts - base_ts) / 10
+		if diff < 300 {
+			s = strf("%d", (300 - diff + 99) / 100)
+			font "",100
+			px = half_w - 50 + 25
+			py = half_h - 50
+			color 0x99, 0x99, 0x99
+			pos px+2, py+2
+			mes s
+	
+			color 255,255,255
+			pos px,py
+			mes s
+	
+			rest = TIME100
+		} else {
+			rest = TIME100 - (diff - 300)
+			if rest <= 0 {
+				status = STATUS_TIMEUP
+				timeup_ts = ts + 3000
+				goto *@f
+			}
+	
+			status = STATUS_MAIN
+
+			if rest <= 1000 {
+				// 残り10秒で赤く表示
+				color 255,0,0
+			}
+		}
+		
+			// 等幅表示する
+		font "",48
+		s = strf("%02d", rest/100) + strf(".%02d", rest\100)
+		n = strlen(s)
+		repeat n
+				pos 20+cnt*32,100
+				mes strmid(s,cnt,1)
+		loop
+	}
+*@
+
+	if status == STATUS_TIMEUP {
+		s = strf("SCORE: %d", score)
+		font "",40
+		px = half_w - 150
+		py = half_h - 20
+
+		color 0x99,0x66,0x66
+		pos px+2,py+2
+		mes s
+	
+		color 255,255,255
+		pos px,py
+		mes s
+	
+		if ts > timeup_ts {
+			status = STATUS_TITLE
+		}
+	}
+
+
+// 右上
+	font "",36
+	s = "Cute Cabocha Crash"
+	color 102,51,0
+	pos 602,22
+	mes s
+
+	color 255,153,0
+	pos 600,20
+	mes s
+
+	if DEV >= 1 {
+		color 255,255,255
+		pos 850, 60
+		mes strf("%2d", fps)
+		pos 900, 60
+		mes "fps"
+	}
+
+// 下
+	if status == STATUS_TITLE {
+		color 0,0,0
+		boxf 0,PX_H - 60, PX_W,PX_H
+	
+		if (ts \ 2000) <= 1800 {
+			font "",32
+			s = "TOUCH HERE OR PUSH ENTER KEY FOR START"
+			pos 102,557
+			color 0x99,0x99,0x99
+			mes s
+	
+			pos 100,555
+			color 0xFF,0xFF,0xFF
+			mes s
+		}
+	}
+
+	redraw 1
+	await 1000/60
+	goto *main05
+
+
+*calcv3_01
+// 奥行き固定型 2成分 + ビューでZ軸負 → 3成分
+	x = (double(in_pos.0) - half_w) / half_w
+	y = (half_h - double(in_pos.1)) / half_h
+	z = in_pos.2
+
+	aspect = half_w / half_h
+
+	v0.0 = -z * x * tan(half_fov_rad) * aspect
+	v0.1 = -z * y * tan(half_fov_rad)
+	v0.2 = z
+
+	selquat GPOBJ_CAMERA
+	objgetfv q
+
+	_qrot v0, q, 1.0, ret
+
+	selpos GPOBJ_CAMERA
+	objgetfv p
+
+	fvadd ret, p.0, p.1, p.2
+	fv2str ret
+	mes refstr
+	return
+
+*calcv2_01
+// 正変換 そのまま3成分 → スクリーン座標成分
+	v0 = in_pos.0, in_pos.1, in_pos.2
+	getpos GPOBJ_CAMERA, lx, ly, lz
+
+	fvsub v0, lx, ly, lz
+
+	selquat GPOBJ_CAMERA
+	objgetfv q
+
+	_qrot v0, q, -1.0, ret
+
+	lz = -ret.EZ
+	if lz <= 0.0 {
+		px = 0.0
+		py = 0.0
+		pz = 0.0
+		return
+	}
+	
+	aspect = half_w / half_h
+
+	ret.EX *= 1.0 / lz / tan(half_fov_rad) / aspect
+	ret.EY *= 1.0 / lz / tan(half_fov_rad)
+
+	sx = (ret.0 + 1.0) * half_w
+	sy = (1.0 - ret.1) * half_h
+	sz = half_h * 1.0 / lz / tan(half_fov_rad)
+	return
+
+
+*q2ang01
+// in_qq を入力とする。ret に回転分解成分を格納する
+	ddim qbx,3
+	ddim qbz,3
+
+// 回転
+	bx = 1.0, 0.0, 0.0
+	_qrot bx, in_qq, 1.0, qbx
+
+	bz = 0.0, 0.0, 1.0
+	_qrot bz, in_qq, 1.0, qbz
+
+// X逆回転(回転後Z基底のY成分を0にする)
+	ret.EX = -atan(qbz.EY, qbz.EZ)
+
+	_xrot qbx, -ret.EX
+	_xrot qbz, -ret.EX
+
+// Y逆回転(回転後Z基底をZ基底にする)
+	ret.EY = atan(qbz.EX, qbz.EZ)
+
+	_yrot qbx, -ret.EY
+
+// Z逆回転(回転後X基底をX基底にする)
+	ret.EZ = atan(qbx.EY, qbx.EX)
+	return
+
+
+*ready01
+	status = STATUS_READY
+	base_ts = ts
+	score = 0
+	return
+
+
+*init01
+	title "珠音ちゃんとカボチャのオバケ ver.1.0"
+	setreq SYSREQ_VSYNC,1
+	gpreset
+	setcls CLSMODE_SOLID, $202020
+
+
+// ライトの向き
+	setang GPOBJ_LIGHT, -M_PI*0.125, -M_PI*0.1, 0
+
+	//setcolor GPOBJ_LIGHT, 1,0.5,0.5
+	// dirとはいうが環境光らしい
+//	setdir GPOBJ_LIGHT, 0.2,0.2,0.2
+
+	if 1 {
+// 物理床
+		sw = double(FLOOR_SIDE_NUM) * 2.0
+		gpfloor id_floor, sw, sw, 0xFF0000
+		setpos id_floor, 0.0, 0.0, 0.0
+		gppbind id_floor, 0.0, 0.0
+		gppset id_floor, GPPSET_FRICTION, 0.0, 1.0
+
+		gpfloor id_floor2, sw, sw, 0xFF00FF
+		setpos id_floor2, 0.0, 0.0, sw
+		gppbind id_floor2, 0.0, 0.0
+		gppset id_floor2, GPPSET_FRICTION, 0.0, 1.0
+
+		if DEV == 0 {
+			setobjmode id_floor, OBJ_HIDE, 0
+			setobjmode id_floor2, OBJ_HIDE, 0
+		}
+
+// 物理箱
+		gpbox id_box, 0.5, 0x00FF00
+		setpos id_box, 0,4,4
+		setang id_box, 0.2, 0.2
+		gppbind id_box, 100.0, 0.0
+		gppset id_box, GPPSET_FRICTION, 0.0, 0.5
+		gppset id_box, GPPSET_DAMPING, 0.0, 0.9
+		gppapply id_box, GPPAPPLY_IMPULSE, 0, 100.0, -200.0
+		if DEV == 0 {
+			setobjmode id_box, OBJ_HIDE, 0
+		}
+	}
+
+	gosub *loading01
+
+
+	PX_W = ginfo(26)
+	PX_H = ginfo(27)
+
+	half_w = double(PX_W) * 0.5
+	half_h = double(PX_H) * 0.5
+
+	fov = 45.0
+	half_fov_rad = fov * 0.5 * 2.0 * M_PI / 360.0
+
+	near = 0.5
+	far = 768.0
+
+	gosub *common01
+
+
+	c_head = M_PI * 1.22
+	c_pitch = -M_PI * 0.15
+	c_x = mousex
+	c_y = mousey
+	c_preRot = 1
+	c_dist = 12.0
+	
+	cs.0 = 0.0, 2.0, 8.0
+
+
+	tam_pos.0 = 0.0, 0.0, 0.0
+
+	ddim ang,3
+
+	high_score = 1000
+	save_file = dirinfo(1) + "/save.ini"
+#ifdef _WIN
+	GetPrivateProfileInt "save","highscore",high_score,save_file
+	high_score = stat
+#endif
+
+	status = STATUS_NONE
+
+	return
+
+
+*save01
+	s = strf("%d", high_score)
+#ifdef _WIN
+	WritePrivateProfileString "save","highscore",varptr(s),save_file
+#endif
+	return
+
+
+*rekabo01
+// 入力は id
+	idk = id
+	if 1 {
+		setobjmode idk, OBJ_HIDE, 1
+		setobjmode idk, OBJ_MOVE, 0
+// 出現
+		lorr = rnd(2)
+		kx = double(rnd(5)) * 0.5
+		ky = double(rnd(11)) * 0.20 + 2.0
+		kz = double(rnd(11)) * 1.00 + LIMIT_ABS
+		if lorr == 0 {
+			kx = - (BEGIN_ABS - kx)
+			dx = KABO_SPEED
+			ry = M_PI * 0.5
+		} else {
+			kx = BEGIN_ABS - kx
+			dx = -KABO_SPEED
+			ry = -M_PI * 0.5
+		}
+		setpos idk, kx,ky,kz
+		setdir idk, dx,0,0
+		setang idk, 0,ry,0
+	}
+	return
+
+
+*initkabo01
+	//assert 0
+	//dialog ""
+	// COL_MY なのは体当たり???
+// OBJ_MOVEでないものを探す
+	//findobj OBJ_MOVE,COL_MY
+	findobj OBJ_MOVE,COL_ENEMY
+	nextobj idk
+	if idk >= 0 {
+		setobjmode idk, OBJ_HIDE, 1
+		setobjmode idk, OBJ_MOVE, 0
+
+		lorr = rnd(2)
+		kx = double(rnd(5)) * 0.5
+		ky = double(rnd(11)) * 0.20 + 2.0
+		kz = double(rnd(11)) * 1.00 + LIMIT_ABS
+		if lorr == 0 {
+			kx = - (BEGIN_ABS - kx)
+			dx = KABO_SPEED
+			ry = M_PI * 0.5
+		} else {
+			kx = BEGIN_ABS - kx
+			dx = -KABO_SPEED
+			ry = -M_PI * 0.5
+		}
+		setpos idk, kx,ky,kz
+		setdir idk, dx,0,0
+		setang idk, 0,ry,0
+	}
+	return
+
+
+*cam01
+	c_dist = limitf(c_dist + double(mw) * 0.01, 1.0, 100.0)
+	
+	rbutton = key & ST_RB
+
+	if c_preRot {
+		dx = double(mx - c_x)
+		dy = double(my - c_y)
+	
+		head = c_head - dx * 0.01
+		pitch = limitf(c_pitch - dy * 0.01, -M_PI*0.5 + 0.001, M_PI*0.5 - 0.001)
+		
+		if rbutton {
+			// 押したまま
+		} else { // 今離した
+			c_head = head
+			c_pitch = pitch
+		}
+	} else {
+		if rbutton { // 今押した
+			c_x = mx
+			c_y = my
+		}
+	}
+
+
+// 変換して算出
+	if c_preRot {
+		rr = cos(pitch)
+
+		dx = rr * sin(head)
+		dy = sin(pitch)
+		dz = rr * cos(head)
+		x = cs.EX - c_dist * dx
+		y = cs.EY - c_dist * dy
+		z = cs.EZ - c_dist * dz
+
+		setpos GPOBJ_CAMERA, x,y,z
+		gplookat GPOBJ_CAMERA, x + c_dist * dx, y + c_dist * dy, z + c_dist * dz
+	}
+
+	c_preRot = rbutton
+	return
+
+*common01
+// 共通配置
+
+	repeat 6
+		gosub *initkabo01
+	loop
+
+// 床
+	index = 0
+	num = FLOOR_SIDE_NUM
+	repeat num
+		i = cnt
+		z = double((i-num/2)*2 + 1 - (num&1))
+
+		repeat num
+			j = cnt
+			x = double((j-num/2)*2 + 1 - (num&1))
+	
+			id = ids(tops.MT_MF_00 + index)
+			setpos id, x, 0.0, z
+			setobjmode id, OBJ_HIDE, 1
+	
+// もう一方の床配置
+			id = ids(tops.MT_MD_00 + index)
+			setpos id, x, 0.0, z + double(FLOOR_SIDE_NUM) * 2.0
+			setobjmode id, OBJ_HIDE, 1
+
+			index++
+		loop
+	loop
+
+	if DEV >= 1 {
+		id = ids(tops.MT_GRID)
+		setobjmode id, OBJ_HIDE, 1
+	
+		id = ids(tops.MT_AXIS)
+		setobjmode id, OBJ_HIDE, 1
+	
+		id = id_box
+		setobjmode id, OBJ_HIDE, 1
+	}
+	return
+
+
+*loading01
+// 初期ロード
+	if 1 {
+		setpos GPOBJ_CAMERA, 2,2,6
+		gplookat GPOBJ_CAMERA, 0,1,0
+	}
+
+	sdim mps,256,MT_MAX
+	dim mns,MT_MAX
+	ddim mks,MT_MAX
+
+	mps.MT_GRID = "res/grid"
+	mps.MT_STAND = "res/tamane2_stand"
+	mps.MT_WALK = "res/tamane2_walk"
+	mps.MT_RUN = "res/tamane2_run"
+	mps.MT_FIRE = "res/fire"
+	mps.MT_SPARKLER = "res/sparkler"
+	mps.MT_SPARKLER_RED = "res/sparkler_red"
+	mps.MT_ATOM = "res/atom"
+	mps.MT_ATOM_BLUE = "res/atom_blue"
+	mps.MT_KABO = "res/kabo/kabo"
+	mps.MT_KABOTYA = "res/kabotya/kabotya"
+	mps.MT_MF_00 = "res/mf_00/mf_00"
+	mps.MT_MD_00 = "res/md_00/md_00"
+	mps.MT_TAKARA = "res/takarabako_05/takarabako_05"
+	mps.MT_AXIS = "res/axis"
+
+
+	mns.MT_STAND = 1
+	mns.MT_WALK = 1
+	mns.MT_RUN = 1
+	mns.MT_FIRE = 1
+
+	mns.MT_KABO = 2
+	mns.MT_KABOTYA = 3
+	mns.MT_MF_00 = (FLOOR_SIDE_NUM * FLOOR_SIDE_NUM) | BIT_CLONE
+	mns.MT_MD_00 = (FLOOR_SIDE_NUM * FLOOR_SIDE_NUM) | BIT_CLONE
+	mns.MT_GRID = 1
+	mns.MT_TAKARA = 1
+	mns.MT_AXIS = 1
+
+	mns.MT_ATOM = mns.MT_KABO
+	mns.MT_ATOM_BLUE = mns.MT_KABOTYA
+
+	mns.MT_SPARKLER = mns.MT_KABO + mns.MT_KABOTYA
+	mns.MT_SPARKLER_RED = 2
+	
+	mks.MT_STAND = 0.01
+	mks.MT_WALK = 0.01
+	mks.MT_RUN = 0.01
+
+	mks.MT_FIRE = 1.0
+	mks.MT_SPARKLER = 1.0
+	mks.MT_SPARKLER_RED = 1.0
+	mks.MT_ATOM = 1.0
+	mks.MT_ATOM_BLUE = 1.0
+	
+	mks.MT_KABO = 0.005
+	mks.MT_KABOTYA = 0.005
+	mks.MT_MF_00 = 0.01
+	mks.MT_MD_00 = 0.01
+	mks.MT_GRID = 2.0
+	mks.MT_TAKARA = 0.01
+	mks.MT_AXIS = 1.0
+
+
+// 個数の決定
+	sum = 0
+	index = 0
+	repeat MT_MAX
+		i = cnt
+
+		n = mns.i & 0xFFFF
+		sum += n
+
+		tops.i = index
+
+		repeat n
+			s.index = mps.i
+			k.index = mks.i
+			t.index = i
+			if (cnt >= 1) & ((mns.i & BIT_CLONE) != 0) {
+				t.index |= BIT_CLONE
+			}
+			index++
+		loop
+	loop
+
+	dim ids,sum
+	//dialog "" + sum
+
+// ロードの実行
+	repeat sum
+		u = t.cnt & 0xFFFF
+
+		if t.cnt & BIT_CLONE {
+			gpclone id, ids(cnt-1)
+		} else {
+			gpload id, s.cnt
+			if id < 0 {
+				dialog "", s.cnt
+				end
+			}
+		}
+
+		ids.cnt = id
+		setscale id, k.cnt, k.cnt, k.cnt
+
+// つけなければ 見える
+		//setobjmode id, OBJ_HIDE, 0
+		setpos id, double(cnt-20)*0.4, double(cnt & 3)*0.2,0
+		
+		setobjmode id, OBJ_MOVE, 1
+
+		if (u == MT_FIRE) | (u == MT_SPARKLER) | (u == MT_ATOM) | (u == MT_ATOM_BLUE) | (u == MT_SPARKLER_RED) {
+			setobjmode id, OBJ_LATE, 0
+	
+			if u == MT_SPARKLER {
+				setcoli id, COL_ENESHOT, COL_STAR
+			}
+			if u == MT_SPARKLER_RED {
+				setcoli id, COL_ENESHOT, COL_STAR_RED
+			}
+			if u == MT_ATOM {
+				setcoli id, COL_SHOT, COL_ATOM
+			}
+			if u == MT_ATOM_BLUE {
+				setcoli id, COL_SHOT, COL_ATOM_BLUE
+			}
+		} else {
+			setobjmode id, OBJ_LATE, 1
+		}
+
+		if (u == MT_KABO) | (u == MT_KABOTYA) {
+			setcoli id, COL_ENEMY, COL_MY
+
+			// 判定半径と判定中心Y成分オフセット
+			if u == MT_KABO {
+				setwork2 id, 160.0 * k.cnt, 182.0 * k.cnt, 0.0
+			} else {
+				setwork2 id, 138.0 * k.cnt, 144.0 * k.cnt, 0.0
+			}
+		}
+	
+		if u == MT_TAKARA {
+			setcoli id, COL_TAKARA, COL_TAKARA
+			setwork2 id, 36.0 * k.cnt, 25.0 * k.cnt, 0.0
+		}
+	
+// スクリーン座標系で中心座標を入れる
+		setwork id, 0,0,0
+	
+		if t.cnt & BIT_CLONE {
+			continue
+		}
+
+		redraw 0
+		gpdraw
+
+		font "",32
+		color 0xCC,0xCC,0xCC
+		pos 300,400
+		s = "NOW LOADING... "
+		if DEV == 0 {
+			s += strf("%3d", cnt * 100 / sum) + "%"
+		} else {
+			s += strf("%3d",cnt)
+		}
+		mes s
+		redraw 1
+		await 1000/60
+		
+	loop
+
+// 結びつけ
+	repeat mns.MT_KABO
+		id0 = ids(tops.MT_KABO + cnt)
+		id1 = ids(tops.MT_ATOM + cnt)
+	
+		getwork2 id0, x,y,z
+		setwork2 id0, x,y,id1
+	
+		getwork2 id1, x,y,z
+		setwork2 id1, x,y,id0
+	loop
+	repeat mns.MT_KABOTYA
+		id0 = ids(tops.MT_KABOTYA + cnt)
+		id1 = ids(tops.MT_ATOM_BLUE + cnt)
+	
+		getwork2 id0, x,y,z
+		setwork2 id0, x,y,id1
+	
+		getwork2 id1, x,y,z
+		setwork2 id1, x,y,id0
+	loop
+	
+	if 1 {
+		id0 = ids(tops.MT_TAKARA)
+		id1 = id_box
+
+		getwork2 id0, x,y,z
+		setwork2 id0, x,y,id1
+	
+		getwork2 id1, x,y,z
+		setwork2 id1, x,y,id0	
+	}
+
+	//stop
+
+	return
+
+
+*owari01
+	gosub *save01
+	end
+
+
+// kabo no hat green
+// xok, 20.53 - 343.51, zok, r = 160, +182
+
+// kabotya hat blue
+// xok, 6.66 - 282.18, zok, r = 138, +144
+
+// tam
+// r = 54 hand, 4.1291 - 246.9651, zok, r = 120, +126
+
+// takarabako_05
+// +25 r = 25 または36
